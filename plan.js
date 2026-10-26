@@ -37,5 +37,14 @@ window.PLAN = {
 
   // Real (after-inflation) annual return assumptions, today's dollars.
   // "base" is the slider's starting point; scenarios offset from it.
-  returns: { base: 0.05, average: 0.00, below: -0.02, significantlyBelow: -0.04 }
+  returns: { base: 0.05, average: 0.00, below: -0.02, significantlyBelow: -0.04 },
+
+  // Levers you can tune (seed values; sliders start here).
+  assumptions: {
+    salaryGrowth: 0.01,        // real annual raise while working
+    otherMonthlyIncome: 0,     // Social Security / pension / annuity per month
+    // Contribution rate as a % of combined gross salary. Default is derived
+    // from the accounts above (total contrib / total salary) if left null.
+    contribRate: null
+  }
 };

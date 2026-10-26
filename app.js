@@ -1,45 +1,59 @@
 const P = window.PLAN;
 const $ = s => document.querySelector(s);
 const fmt$ = n => "$" + Math.round(n).toLocaleString("en-US");
-const fmt$0 = n => "$" + Math.round(n).toLocaleString("en-US");
 
-const primary = P.people[0];                       // drives the timeline
+const prim = P.people[0];                              // drives the timeline
 const totalSaved = P.accounts.reduce((s, a) => s + a.balance, 0);
 const totalContrib = P.accounts.reduce((s, a) => s + a.contrib, 0);
 const monthlyExpense = P.expenses.essential + P.expenses.nonEssential;
+const baseSalary = P.people.reduce((s, p) => s + p.income, 0);
+const A = P.assumptions || {};
 
-// Live, editable state (seeded from the snapshot)
+// Live, editable state (seeded from the snapshot). Rates stored as fractions.
 const defaults = {
+  salary1: P.people[0].income,
+  salary2: (P.people[1] && P.people[1].income) || 0,
+  contribRate: A.contribRate != null ? A.contribRate : (baseSalary ? totalContrib / baseSalary : 0),
+  raise: A.salaryGrowth || 0,
   rate: P.returns.base,
-  contrib: totalContrib,
-  retireAge: primary.retireAge,
-  monthly: monthlyExpense
+  retireAge: prim.retireAge,
+  monthly: monthlyExpense,
+  other: A.otherMonthlyIncome || 0
 };
 let state = { ...defaults };
 
 // --- Projection model (today's dollars) ---------------------------------
-// Grow with contributions until retirement, then draw down expenses to end of plan.
-function project(realRate) {
-  const years = primary.planToAge - primary.age;           // horizon in years
-  const yearsToRetire = state.retireAge - primary.age;
-  const annualExpense = state.monthly * 12;
+// While working: salary grows by `raise`, contributions = salary * contribRate.
+// In retirement: draw down (expenses − other income) each year to end of plan.
+// `o` overrides individual state fields; `rateBump` nudges the return.
+function project(realRate, o = {}) {
+  const s = { ...state, ...o };
+  const years = prim.planToAge - prim.age;
+  const ytr = s.retireAge - prim.age;
+  let salary = s.salary1 + s.salary2;
+  let bal = totalSaved, shortfallYear = null;
   const pts = [];
-  let bal = totalSaved;
-  let shortfallYear = null;
   for (let y = 0; y <= years; y++) {
-    pts.push({ year: P.startYear + y, age: primary.age + y, bal: Math.max(bal, 0) });
-    const working = y < yearsToRetire;
-    bal = bal * (1 + realRate) + (working ? state.contrib : -annualExpense);
-    if (!working && bal < 0 && shortfallYear === null) shortfallYear = P.startYear + y + 1;
+    pts.push({ year: P.startYear + y, age: prim.age + y, bal: Math.max(bal, 0) });
+    const working = y < ytr;
+    if (working) {
+      bal = bal * (1 + realRate) + salary * s.contribRate;
+      salary *= (1 + s.raise);
+    } else {
+      const net = Math.max(0, (s.monthly - s.other) * 12);
+      bal = bal * (1 + realRate) - net;
+      if (bal < 0 && shortfallYear === null) shortfallYear = P.startYear + y + 1;
+    }
   }
   return { pts, shortfallYear, end: Math.max(pts[pts.length - 1].bal, 0) };
 }
 
+const projectWith = (offset, o = {}) => project(state.rate + offset + (o.rateBump || 0), o);
 function scenarios() {
   return {
-    average: project(state.rate + P.returns.average),
-    below: project(state.rate + P.returns.below),
-    sig: project(state.rate + P.returns.significantlyBelow)
+    average: projectWith(P.returns.average),
+    below: projectWith(P.returns.below),
+    sig: projectWith(P.returns.significantlyBelow)
   };
 }
 
@@ -57,11 +71,10 @@ function drawChart(sc) {
   const pad = { l: 58, r: 14, t: 14, b: 26 };
   const all = [...sc.average.pts, ...sc.below.pts, ...sc.sig.pts];
   const maxBal = Math.max(1, ...all.map(p => p.bal));
-  const x0 = sc.average.pts[0].year, x1 = sc.average.pts[sc.average.pts.length - 1].year;
+  const x0 = sc.average.pts[0].year, x1 = sc.average.pts.at(-1).year;
   const X = yr => pad.l + (yr - x0) / (x1 - x0) * (W - pad.l - pad.r);
   const Y = v => H - pad.b - v / maxBal * (H - pad.t - pad.b);
 
-  // gridlines + y labels
   ctx.font = "11px system-ui"; ctx.fillStyle = "#9aa6c4"; ctx.strokeStyle = "#2a3458";
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -69,12 +82,10 @@ function drawChart(sc) {
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
     ctx.textAlign = "right"; ctx.fillText(shortMoney(v), pad.l - 6, y + 3);
   }
-  // x labels
   ctx.textAlign = "center";
   for (let yr = x0; yr <= x1; yr += Math.ceil((x1 - x0) / 6)) ctx.fillText(yr, X(yr), H - 8);
 
-  // retirement marker
-  const retYear = P.startYear + (state.retireAge - primary.age);
+  const retYear = P.startYear + (state.retireAge - prim.age);
   ctx.strokeStyle = "#f87272"; ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(X(retYear), pad.t); ctx.lineTo(X(retYear), H - pad.b); ctx.stroke();
   ctx.setLineDash([]); ctx.fillStyle = "#f87272"; ctx.textAlign = "left";
@@ -104,7 +115,7 @@ function renderHeadline(sc) {
     { h: "Probability of success", v: prob + "%", cls: probClass,
       sub: prob >= 80 ? "On-track — well done!" : "Room to improve" },
     { h: "Assets at end of plan · average", v: fmt$(sc.average.end), cls: "good",
-      sub: "Age " + primary.planToAge + " · " + sc.average.pts.at(-1).year },
+      sub: "Age " + prim.planToAge + " · " + sc.average.pts.at(-1).year },
     { h: "Assets at end of plan · below-avg", v: fmt$(sc.below.end), cls: sc.below.end > 0 ? "" : "bad",
       sub: sc.below.end > 0 ? "Still covered" : "Depleted" },
     { h: "Significantly below market", v: shortfall ? shortfall : fmt$(sc.sig.end),
@@ -116,12 +127,24 @@ function renderHeadline(sc) {
 }
 
 // --- Controls ------------------------------------------------------------
+const pct = v => (v * 100).toFixed(1) + "%";
+function contribLabel(v) {
+  const yr = (state.salary1 + state.salary2) * v;
+  return pct(v) + " · " + fmt$(yr) + "/yr · " + fmt$(yr / 12) + "/mo";
+}
 const CONTROLS = [
-  { key: "rate",      label: "Real return / yr", min: 0, max: 0.08, step: 0.005, fmt: v => (v * 100).toFixed(1) + "%" },
-  { key: "contrib",   label: "Annual contributions", min: 0, max: 150000, step: 1000, fmt: fmt$0 },
+  { key: "salary1",   label: P.people[0].name + " salary", min: 0, max: 400000, step: 5000, fmt: v => fmt$(v) + "/yr" },
+  { key: "salary2",   label: (P.people[1] ? P.people[1].name : "Partner") + " salary", min: 0, max: 400000, step: 5000, fmt: v => fmt$(v) + "/yr" },
+  { key: "contribRate", label: "Contribution rate (% of salary)", min: 0, max: 0.5, step: 0.01, fmt: contribLabel },
+  { key: "raise",     label: "Annual raise (real)", min: 0, max: 0.05, step: 0.005, fmt: pct },
+  { key: "rate",      label: "Real return / yr", min: 0, max: 0.08, step: 0.005, fmt: pct },
   { key: "retireAge", label: "Retirement age", min: 55, max: 75, step: 1, fmt: v => v },
-  { key: "monthly",   label: "Monthly expenses", min: 5000, max: 20000, step: 100, fmt: fmt$0 }
+  { key: "monthly",   label: "Monthly retirement expenses", min: 5000, max: 20000, step: 100, fmt: v => fmt$(v) },
+  { key: "other",     label: "Social Security / other income", min: 0, max: 10000, step: 100, fmt: v => fmt$(v) + "/mo" }
 ];
+function syncOutputs() {
+  CONTROLS.forEach(c => { $("#out-" + c.key).textContent = c.fmt(state[c.key]); });
+}
 function renderControls() {
   $("#controls").innerHTML = CONTROLS.map(c => `
     <div class="ctl">
@@ -129,18 +152,51 @@ function renderControls() {
       <input type="range" id="in-${c.key}" min="${c.min}" max="${c.max}" step="${c.step}" value="${state[c.key]}" />
     </div>`).join("");
   CONTROLS.forEach(c => {
-    const inp = $("#in-" + c.key);
-    const sync = () => {
-      state[c.key] = +inp.value;
-      $("#out-" + c.key).textContent = c.fmt(state[c.key]);
+    $("#in-" + c.key).addEventListener("input", e => {
+      state[c.key] = +e.target.value;
+      syncOutputs();          // salary changes also move the contribution $ label
       recompute();
-    };
-    inp.addEventListener("input", sync);
-    $("#out-" + c.key).textContent = c.fmt(state[c.key]);
+    });
   });
+  syncOutputs();
   $("#rateNote").textContent =
-    `Scenarios offset the chosen real return: average = slider, below-avg = −${(-P.returns.below*100).toFixed(0)}%, ` +
-    `significantly below = −${(-P.returns.significantlyBelow*100).toFixed(0)}%. All figures in today's dollars.`;
+    `Contributions = salary × rate, growing with your raise each working year. Scenarios offset the chosen ` +
+    `return: average = slider, below-avg −${(-P.returns.below*100).toFixed(0)}%, significantly below ` +
+    `−${(-P.returns.significantlyBelow*100).toFixed(0)}%. Everything is in today's dollars.`;
+}
+
+// --- Impact: 5 single-lever changes -------------------------------------
+function renderImpact() {
+  const baseAvg = projectWith(P.returns.average).end;
+  const baseSf = projectWith(P.returns.significantlyBelow).shortfallYear;
+
+  const nudges = [
+    { label: "Save 2% more of salary",      o: { contribRate: state.contribRate + 0.02 } },
+    { label: "Work 1 more year",            o: { retireAge: state.retireAge + 1 } },
+    { label: "Trim expenses $500/mo",       o: { monthly: Math.max(0, state.monthly - 500) } },
+    { label: "Add $1,000/mo other income",  o: { other: state.other + 1000 } },
+    { label: "Earn 0.5% more real return",  o: { rateBump: 0.005 } }
+  ];
+
+  const deltaStr = (d) => {
+    if (Math.abs(d) < 1) return `<span class="muted">no change</span>`;
+    const cls = d > 0 ? "good" : "bad";
+    return `<span class="big ${cls}" style="font-size:14px">${d > 0 ? "+" : "−"}${fmt$(Math.abs(d))}</span>`;
+  };
+  const sfStr = (sf) => {
+    if (!sf) return `<span class="good">none</span>`;
+    const dy = baseSf ? sf - baseSf : null;
+    const tag = dy ? ` <span class="muted">(${dy > 0 ? "+" : ""}${dy}y)</span>` : "";
+    return `<span class="bad">${sf}</span>${tag}`;
+  };
+
+  $("#impact tbody").innerHTML = nudges.map(n => {
+    const avg = projectWith(P.returns.average, n.o).end;
+    const sf = projectWith(P.returns.significantlyBelow, n.o).shortfallYear;
+    return `<tr><td>${n.label}</td>
+      <td class="num">${deltaStr(avg - baseAvg)}</td>
+      <td class="num">${sfStr(sf)}</td></tr>`;
+  }).join("");
 }
 
 // --- Static tables -------------------------------------------------------
@@ -167,9 +223,10 @@ function renderStatic() {
 
   $("#disclaimer").innerHTML =
     "Hypothetical, educational projections in today's dollars — not guarantees of future results, not advice. " +
-    "A simple deterministic model (grow contributions to retirement, then draw down expenses); it does not run the " +
-    "Monte Carlo simulation behind the reported 86% probability of success. Reported snapshot figures come from the " +
-    "original Fidelity Planning &amp; Guidance Center report. Edit <code>plan.js</code> to plug in your own numbers.";
+    "A simple deterministic model (grow salary-based contributions to retirement, then draw down expenses net of " +
+    "other income); it does not run the Monte Carlo simulation behind the reported 86% probability of success. " +
+    "Reported snapshot figures come from the original Fidelity Planning &amp; Guidance Center report. " +
+    "Edit <code>plan.js</code> to plug in your own numbers.";
 }
 function bars(obj, palette) {
   const entries = Object.entries(obj);
@@ -185,6 +242,7 @@ function recompute() {
   const sc = scenarios();
   drawChart(sc);
   renderHeadline(sc);
+  renderImpact();
 }
 $("#reset").addEventListener("click", () => {
   state = { ...defaults };
