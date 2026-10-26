@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<title>Retirement Plan Snapshot</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icons/icon.svg" />
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b31; --panel2:#1b2340; --ink:#e8ecf7; --muted:#9aa6c4;
+    --line:#2a3458; --accent:#5b8cff; --good:#36d399; --warn:#fbbd23; --bad:#f87272;
+    --avg:#5b8cff; --below:#36d399; --sig:#fbbd23;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:radial-gradient(1200px 600px at 20% -10%,#17203f 0,transparent 60%),var(--bg);
+    background-color:var(--bg);
+    color:var(--ink); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    padding:max(16px,env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:1020px;margin:0 auto}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:4px}
+  h1{font-size:22px;margin:0;letter-spacing:.2px}
+  .asof{color:var(--muted);font-size:13px}
+  .sub{color:var(--muted);margin:2px 0 18px;font-size:14px}
+  .grid{display:grid;gap:14px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 10px}
+  .big{font-size:26px;font-weight:700}
+  .big.good{color:var(--good)} .big.warn{color:var(--warn)} .big.bad{color:var(--bad)}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border-bottom:0}
+  .kv span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+  .muted{color:var(--muted)}
+  canvas{width:100%;height:320px;display:block}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .ctl output{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);margin-top:10px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .bar{height:10px;border-radius:6px;background:var(--panel2);overflow:hidden;display:flex}
+  .bar i{display:block;height:100%}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted)}
+  .row{display:flex;flex-wrap:wrap;gap:14px}
+  .row>*{flex:1 1 300px}
+  .reset{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font:inherit}
+  .reset:hover{border-color:var(--accent)}
+  footer{color:var(--muted);font-size:11px;margin-top:24px;line-height:1.5}
+  section{margin-top:14px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Retirement Plan Snapshot</h1>
+    <span class="asof" id="asof"></span>
+  </header>
+  <p class="sub">Today's dollars, from today until end of plan, using your current asset mix. Drag the sliders to play with the assumptions — everything recomputes live.</p>
+
+  <!-- Headline cards -->
+  <div class="grid cards" id="headline"></div>
+
+  <!-- Projection -->
+  <section class="card">
+    <h2>Asset projection</h2>
+    <canvas id="chart" width="1000" height="320" aria-label="Asset projection chart"></canvas>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--avg)"></i>Average market</span>
+      <span><i class="dot" style="background:var(--below)"></i>Below-average market</span>
+      <span><i class="dot" style="background:var(--sig)"></i>Significantly below-average market</span>
+    </div>
+  </section>
+
+  <!-- Controls -->
+  <section class="card">
+    <h2>Play with the plan</h2>
+    <div class="controls" id="controls"></div>
+    <p class="note" id="rateNote"></p>
+    <button class="reset" id="reset">Reset to snapshot</button>
+  </section>
+
+  <div class="row">
+    <!-- Accounts -->
+    <section class="card">
+      <h2>Your accounts</h2>
+      <table id="accounts"><thead><tr>
+        <th>Account</th><th>Owner</th><th class="num">Balance</th><th class="num">Contrib/yr</th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- Household -->
+    <section class="card">
+      <h2>Household</h2>
+      <div id="household"></div>
+    </section>
+  </div>
+
+  <div class="row">
+    <!-- Asset mix -->
+    <section class="card">
+      <h2>Current asset mix</h2>
+      <div id="assetmix"></div>
+    </section>
+
+    <!-- Account type split -->
+    <section class="card">
+      <h2>Tax treatment</h2>
+      <div id="taxmix"></div>
+    </section>
+  </div>
+
+  <footer id="disclaimer"></footer>
+</div>
+
+<script src="plan.js"></script>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
