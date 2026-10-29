@@ -28,23 +28,48 @@
   header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:4px}
   h1{font-size:22px;margin:0;letter-spacing:.2px}
   .asof{color:var(--muted);font-size:13px}
-  .sub{color:var(--muted);margin:2px 0 18px;font-size:14px}
+  .sub{color:var(--muted);margin:2px 0 10px;font-size:14px}
   .grid{display:grid;gap:14px}
   .cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
   .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 10px}
-  .big{font-size:26px;font-weight:700}
+  .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
   .big.good{color:var(--good)} .big.warn{color:var(--warn)} .big.bad{color:var(--bad)}
   .kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line)}
   .kv:last-child{border-bottom:0}
   .kv span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
   .muted{color:var(--muted)}
-  canvas{width:100%;height:320px;display:block}
+  .delta{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;
+    padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--muted)}
+  .delta.good{color:var(--good);border-color:#1c5a43}
+  .delta.bad{color:var(--bad);border-color:#5a2727}
+  /* Tabs */
+  .tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin:4px 0 18px;-webkit-overflow-scrolling:touch}
+  .tab{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
+    font:inherit;font-weight:600;padding:12px 14px;min-height:44px;cursor:pointer;white-space:nowrap}
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px}
+  .panel{display:grid;gap:14px}
+  .chartwrap{position:relative}
+  canvas{width:100%;height:320px;display:block;border-radius:10px;touch-action:none;cursor:crosshair}
+  canvas:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  #tip{position:absolute;top:0;left:0;transform:translate(-50%,-100%);pointer-events:none;
+    background:#0d1430;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;
+    box-shadow:0 8px 24px rgba(0,0,0,.45);opacity:0;transition:opacity .12s;white-space:nowrap;z-index:5}
+  #tip.on{opacity:1}
+  #tip .ty{color:var(--muted);margin-bottom:4px}
+  #tip .tr{display:flex;align-items:center;gap:6px;justify-content:space-between}
+  #tip .tr b{font-variant-numeric:tabular-nums;margin-left:12px}
   .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
   .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
   .ctl output{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   input[type=range]{width:100%;accent-color:var(--accent)}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+  select{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;font:inherit}
+  select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);margin-top:10px}
+  .legend .ln{display:inline-block;width:20px;height:0;border-top-width:3px;margin-right:6px;vertical-align:middle}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
@@ -52,14 +77,30 @@
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   .bar{height:10px;border-radius:6px;background:var(--panel2);overflow:hidden;display:flex}
   .bar i{display:block;height:100%}
+  .progress{height:14px;border-radius:8px;background:var(--panel2);overflow:hidden;margin:12px 0}
+  .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--good),var(--accent))}
+  .coastbig{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.3px}
+  .coastbig.good{color:var(--good)}
+  .statusline{font-size:15px;margin:8px 0 2px}
   .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted)}
   .row{display:flex;flex-wrap:wrap;gap:14px}
   .row>*{flex:1 1 300px}
-  .reset{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font:inherit}
-  .reset:hover{border-color:var(--accent)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+  .btn{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:11px 16px;min-height:44px;cursor:pointer;font:inherit}
+  .btn:hover{border-color:var(--accent)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn.ok{color:var(--good);border-color:#1c5a43}
   footer{color:var(--muted);font-size:11px;margin-top:24px;line-height:1.5}
-  section{margin-top:14px}
   .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0}
+  [hidden]{display:none!important}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media print{
+    body{background:#fff;color:#000}
+    .tabs,.toolbar,input[type=range],.ctl output,#tip{display:none}
+    .panel{display:grid!important}
+    .card{border-color:#ccc;break-inside:avoid}
+  }
 </style>
 </head>
 <body>
@@ -68,70 +109,118 @@
     <h1>Retirement Plan Snapshot</h1>
     <span class="asof" id="asof"></span>
   </header>
-  <p class="sub">Today's dollars, from today until end of plan, using your current asset mix. Drag the sliders to play with the assumptions — everything recomputes live.</p>
+  <p class="sub">Today's dollars, through end of plan. Use the tabs to explore your projection, Coast&nbsp;FIRE number, and the levers — everything recomputes live.</p>
 
-  <!-- Headline cards -->
-  <div class="grid cards" id="headline"></div>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" id="tab-coast" aria-controls="panel-coast" aria-selected="false" tabindex="-1">Coast FIRE</button>
+    <button class="tab" role="tab" id="tab-plan" aria-controls="panel-plan" aria-selected="false" tabindex="-1">Plan</button>
+    <button class="tab" role="tab" id="tab-accounts" aria-controls="panel-accounts" aria-selected="false" tabindex="-1">Accounts</button>
+  </nav>
 
-  <!-- Projection -->
-  <section class="card">
-    <h2>Asset projection</h2>
-    <canvas id="chart" width="1000" height="320" aria-label="Asset projection chart"></canvas>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--avg)"></i>Average market</span>
-      <span><i class="dot" style="background:var(--below)"></i>Below-average market</span>
-      <span><i class="dot" style="background:var(--sig)"></i>Significantly below-average market</span>
-    </div>
-  </section>
-
-  <!-- Controls -->
-  <section class="card">
-    <h2>Play with the plan</h2>
-    <div class="controls" id="controls"></div>
-    <p class="note" id="rateNote"></p>
-    <button class="reset" id="reset">Reset to snapshot</button>
-  </section>
-
-  <!-- Impact: 5 things you can change -->
-  <section class="card">
-    <h2>What moves the needle — 5 changes</h2>
-    <table id="impact"><thead><tr>
-      <th>Change one thing</th>
-      <th class="num">Assets at end (avg)</th>
-      <th class="num">Shortfall (worst market)</th>
-    </tr></thead><tbody></tbody></table>
-    <p class="note">Each row changes a single lever from your current settings and shows the effect on assets at the end of your plan (average market) and the shortfall year in a significantly below-average market. Green helps, red hurts.</p>
-  </section>
-
-  <div class="row">
-    <!-- Accounts -->
+  <!-- OVERVIEW -->
+  <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div class="grid cards" id="headline"></div>
     <section class="card">
-      <h2>Your accounts</h2>
-      <table id="accounts"><thead><tr>
-        <th>Account</th><th>Owner</th><th class="num">Balance</th><th class="num">Contrib/yr</th>
+      <h2>Asset projection</h2>
+      <div class="chartwrap">
+        <canvas id="chart" width="1000" height="320" tabindex="0" role="img"
+          aria-label="Asset projection over time for three market scenarios. Use left and right arrow keys to read values year by year."></canvas>
+        <div id="tip" role="presentation"></div>
+      </div>
+      <p class="sr-only" id="chartLive" aria-live="polite"></p>
+      <p class="note" style="margin-top:6px">Hover the chart (or focus it and use ← →) to read exact values for any year.</p>
+      <div class="legend">
+        <span><i class="ln" style="border-top:3px solid var(--avg)"></i>Average market</span>
+        <span><i class="ln" style="border-top:3px dashed var(--below)"></i>Below-average market</span>
+        <span><i class="ln" style="border-top:3px dotted var(--sig)"></i>Significantly below-average</span>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="tableToggle" aria-expanded="false" aria-controls="projTable">Show data table</button>
+        <span class="note" style="margin:0">Shaded band = range between the average and worst-case paths.</span>
+      </div>
+      <table id="projTable" hidden><thead><tr>
+        <th>Year</th><th class="num">Age</th>
+        <th class="num">Average</th><th class="num">Below-avg</th><th class="num">Sig. below</th>
       </tr></thead><tbody></tbody></table>
     </section>
+  </section>
 
-    <!-- Household -->
+  <!-- COAST FIRE -->
+  <section class="panel" id="panel-coast" role="tabpanel" aria-labelledby="tab-coast" hidden>
     <section class="card">
-      <h2>Household</h2>
-      <div id="household"></div>
+      <h2>Coast FIRE — can I stop contributing?</h2>
+      <div id="coast"></div>
+      <div class="controls" style="margin-top:18px">
+        <div class="ctl">
+          <label for="in-coastMethod">Target method</label>
+          <select id="in-coastMethod">
+            <option value="deplete">Fund expenses to end of plan (deplete the pot)</option>
+            <option value="swr">Withdrawal-rate rule (hold 1/rate × expenses)</option>
+          </select>
+        </div>
+        <div class="ctl" id="swrWrap" hidden>
+          <label for="in-swr">Safe withdrawal rate<output id="out-swr"></output></label>
+          <input type="range" id="in-swr" min="0.02" max="0.08" step="0.0025" />
+        </div>
+        <div class="ctl">
+          <label for="in-coastFrom">Stop contributing at age<output id="out-coastFrom"></output></label>
+          <input type="range" id="in-coastFrom" step="1" />
+        </div>
+      </div>
+      <p class="note" id="coastNote"></p>
+      <p class="note">Coast FIRE = the amount that, invested today and left untouched (no new contributions) at your average real return, grows to the nest egg you need by retirement. Hit it and every future contribution is money you could spend now instead. Average-market, today's dollars; it doesn't run the Monte Carlo behind the reported probability.</p>
     </section>
-  </div>
+  </section>
 
-  <div class="row">
-    <!-- Asset mix -->
+  <!-- PLAN -->
+  <section class="panel" id="panel-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
     <section class="card">
-      <h2>Current asset mix</h2>
-      <div id="assetmix"></div>
+      <h2>Play with the plan</h2>
+      <div class="controls" id="controls"></div>
+      <p class="note" id="rateNote"></p>
+      <div class="toolbar">
+        <button class="btn" id="copy">Copy shareable link</button>
+        <button class="btn" id="reset">Reset to snapshot</button>
+      </div>
+      <p class="note">The shareable link encodes your current sliders and tab, so you can bookmark a scenario or send it to someone.</p>
     </section>
+    <section class="card">
+      <h2>What moves the needle — 5 changes</h2>
+      <table id="impact"><thead><tr>
+        <th>Change one thing</th>
+        <th class="num">Assets at end (avg)</th>
+        <th class="num">Shortfall (worst market)</th>
+      </tr></thead><tbody></tbody></table>
+      <p class="note">Each row changes a single lever from your current settings and shows the effect on assets at the end of your plan (average market) and the shortfall in a significantly below-average market. Green helps, red hurts.</p>
+    </section>
+  </section>
 
-    <!-- Account type split -->
-    <section class="card">
-      <h2>Tax treatment</h2>
-      <div id="taxmix"></div>
-    </section>
-  </div>
+  <!-- ACCOUNTS -->
+  <section class="panel" id="panel-accounts" role="tabpanel" aria-labelledby="tab-accounts" hidden>
+    <div class="row">
+      <section class="card">
+        <h2>Your accounts</h2>
+        <table id="accounts"><thead><tr>
+          <th>Account</th><th>Owner</th><th class="num">Balance</th><th class="num">Contrib/yr</th>
+        </tr></thead><tbody></tbody></table>
+      </section>
+      <section class="card">
+        <h2>Household</h2>
+        <div id="household"></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>Current asset mix</h2>
+        <div id="assetmix"></div>
+      </section>
+      <section class="card">
+        <h2>Tax treatment</h2>
+        <div id="taxmix"></div>
+      </section>
+    </div>
+  </section>
 
   <footer id="disclaimer"></footer>
 </div>
