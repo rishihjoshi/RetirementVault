@@ -8,14 +8,14 @@ window.PLAN = {
     { name: "Hetal Joshi", age: 41, income: 50000,  retireAge: 65, planToAge: 96, status: "Still working" }
   ],
 
+  // Each account carries its tax treatment; the Tax-treatment panel is computed from these.
   accounts: [
-    { name: "Enterprise Plan 401(k)", custodian: "Fidelity", owner: "Rishi", balance: 521025.53, contrib: 30000 },
-    { name: "Hetal's 401(k)",         custodian: "Fidelity", owner: "Hetal", balance: 79000,     contrib: 17000 },
-    { name: "Rishi's Roth IRA",       custodian: "Vanguard", owner: "Rishi", balance: 10000,     contrib: 3000  }
+    { name: "Enterprise Plan 401(k)",  custodian: "Fidelity", owner: "Rishi", balance: 521025.53, contrib: 30000, tax: "Tax deferred" },
+    { name: "Hetal's 401(k)",          custodian: "Fidelity", owner: "Hetal", balance: 79000,     contrib: 17000, tax: "Tax deferred" },
+    { name: "Rishi's Roth IRA",        custodian: "Vanguard", owner: "Rishi", balance: 10000,     contrib: 3000,  tax: "Tax exempt"  },
+    { name: "Hetal's Roth IRA",        custodian: "Vanguard", owner: "Hetal", balance: 25600,     contrib: 0,     tax: "Tax exempt"  },
+    { name: "Hetal's Traditional IRA", custodian: "Vanguard", owner: "Hetal", balance: 12400,     contrib: 0,     tax: "Tax deferred" }
   ],
-
-  // Tax treatment of total saved
-  taxMix: { "Tax deferred": 92, "Taxable": 0, "Tax exempt": 8 },
 
   // Current asset allocation
   assetMix: {
@@ -25,19 +25,26 @@ window.PLAN = {
   // Monthly expenses in retirement (today's dollars)
   expenses: { essential: 9440, nonEssential: 2360 },
 
-  // Reported snapshot figures (for reference cards)
+  // Reported snapshot figures, kept only as the original report's reference point.
+  // Nothing on screen is read from here any more — every number is computed live.
   reported: {
-    probabilityOfSuccess: 86,       // %
-    monthlyNeed: 12112,             // $ need in retirement
-    monthlyBelowAvg: 14951,         // $ projected if markets below-average
-    endAssetsAverage: 11824689,
-    endAssetsBelowAvg: 2694043,
-    endYear: 2077
+    probabilityOfSuccess: 86,       // original Fidelity report %
+    monthlyNeed: 12112              // original report's stated monthly need
   },
 
   // Real (after-inflation) annual return assumptions, today's dollars.
-  // "base" is the slider's starting point; scenarios offset from it.
-  returns: { base: 0.05, average: 0.00, below: -0.02, significantlyBelow: -0.04 },
+  // "base" is the slider's starting point; scenarios offset from it. "volatility"
+  // is the annual return standard deviation used by the Monte Carlo probability.
+  returns: { base: 0.05, average: 0.00, below: -0.02, significantlyBelow: -0.04, volatility: 0.12 },
+
+  // Monte Carlo settings for the live probability-of-success calculation.
+  sim: { trials: 600, seed: 20261029 },
+
+  // Coast FIRE assumptions (seed values; the Coast FIRE tab can change them live).
+  //   method "deplete" = fund expenses to end of plan (draw the pot to zero)
+  //   method "swr"     = 4%-rule style, hold 1/swr × expenses so it never depletes
+  //   coastFrom        = age to stop contributing (defaults to retirement = no coasting)
+  coast: { method: "deplete", swr: 0.04 },
 
   // Levers you can tune (seed values; sliders start here).
   assumptions: {
