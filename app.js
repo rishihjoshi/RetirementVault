@@ -2,7 +2,7 @@
 // anything reads window.PLAN. This is what lets you enter your own numbers.
 try { const ov = JSON.parse(localStorage.getItem("rv-plan") || "null"); if (ov) Object.assign(window.PLAN, ov); } catch (e) { /* ignore corrupt override */ }
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const P = window.PLAN;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -38,6 +38,7 @@ const defaults = {
 };
 const defaultMethod = (P.coast && P.coast.method) || "deplete";
 let state = { ...defaults, coastMethod: defaultMethod, ...parseHash() };
+let activeTab = "projection";
 
 function parseHash() {
   const out = {};
@@ -50,6 +51,7 @@ function writeHash() {
   const q = new URLSearchParams();
   for (const k in defaults) if (typeof state[k] === "number" && state[k] !== defaults[k]) q.set(k, +(+state[k]).toFixed(4));
   if (state.coastMethod !== defaultMethod) q.set("method", state.coastMethod);
+  if (activeTab !== "projection") q.set("tab", activeTab);
   const h = q.toString();
   history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
 }
@@ -105,8 +107,8 @@ function successProbOnly(o = {}) {
 }
 
 // Full simulation: 10th / 50th / 90th percentile balance paths + probability.
-function simulate() {
-  const s = state, g = mkGauss(), trials = TRIALS();
+function simulate(st) {
+  const s = st || state, g = mkGauss(), trials = TRIALS();
   const years = prim.planToAge - prim.age, ytr = s.retireAge - prim.age, coastAge = Math.min(s.coastFrom, s.retireAge);
   const byYear = Array.from({ length: years + 1 }, () => new Float64Array(trials));
   let success = 0;
@@ -135,8 +137,8 @@ function simulate() {
 }
 
 // --- Coast FIRE ----------------------------------------------------------
-function coastFire() {
-  const s = state, r = s.rate, ytr = s.retireAge - prim.age, retYears = prim.planToAge - s.retireAge;
+function coastFire(st) {
+  const s = st || state, r = s.rate, ytr = s.retireAge - prim.age, retYears = prim.planToAge - s.retireAge;
   let target;
   if (s.coastMethod === "swr") {
     const steadyNet = Math.max(0, s.monthly * 12 - s.ssMonthly * 12) * taxGross(s);
@@ -270,6 +272,7 @@ cv.addEventListener("keydown", e => {
 
 // --- Coast gauge ---------------------------------------------------------
 function drawGauge(pctVal) {
+  if (!gaugeCv.clientWidth) return;
   const { ctx, W, H } = setup(gaugeCv);
   const cx = W / 2, cy = H - 14, rad = Math.min(W / 2 - 16, H - 28), a0 = Math.PI, a1 = 2 * Math.PI, p = Math.max(0, Math.min(1, pctVal / 100));
   ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.strokeStyle = "#1b2340"; ctx.beginPath(); ctx.arc(cx, cy, rad, a0, a1); ctx.stroke();
@@ -281,6 +284,7 @@ function drawGauge(pctVal) {
 
 // --- Donuts --------------------------------------------------------------
 function drawDonut(canvasEl, entries, palette, progress) {
+  if (!canvasEl.clientWidth) return;
   const { ctx, W, H } = setup(canvasEl);
   const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 6, r = R * 0.58, total = entries.reduce((s, e) => s + e[1], 0) || 1;
   let a = -Math.PI / 2;
@@ -379,7 +383,8 @@ swrSlider.addEventListener("input", e => { state.swr = +e.target.value; recomput
 // --- Wire up -------------------------------------------------------------
 function recompute() {
   const c = setTargets();
-  renderCoast(c); renderImpact(); renderProjTable(); syncOutputs();
+  renderCoast(c); renderImpact(); renderProjTable(); syncOutputs(); renderMilestones(c);
+  if (activeTab === "scenarios") renderScenarios();
   $("#needVal").textContent = fmt$(Math.max(0, state.monthly - state.ssMonthly)) + "/mo";
   $("#kpiLive").textContent = `Success ${T.prob}%, median assets at end ${short$(T.end)}, Coast FIRE number ${short$(T.coastNow)}.`;
   writeHash(); startAnim();
@@ -401,7 +406,74 @@ window.addEventListener("resize", () => { drawChart(); drawGauge(D.coastPct); dr
 renderStatic();
 renderControls();
 recompute();
-animateDonuts();
+
+// --- Milestones ----------------------------------------------------------
+function renderMilestones(c) {
+  c = c || coastFire();
+  const yr = age => P.startYear + (age - prim.age);
+  const items = [{ age: prim.age, color: "#9aa6c4", lbl: "Today", sub: P.people.map(p => esc(p.name)).join(" & ") }];
+  if (state.coastFrom < state.retireAge) items.push({ age: state.coastFrom, color: "#36d399", lbl: "Stop contributing (coast)", sub: "no new contributions after this" });
+  if (c.coastAge != null) items.push({ age: c.coastAge, color: "#5b8cff", lbl: "Coast FIRE reached", sub: "current savings alone can carry you" });
+  items.push({ age: state.retireAge, color: "#f87272", lbl: "Retirement", sub: "stop working, begin drawdown" });
+  if (state.ssMonthly > 0) items.push({ age: state.ssStartAge, color: "#8b6bff", lbl: "Social Security starts", sub: fmt$(state.ssMonthly) + "/mo" });
+  if (simLatest && simLatest.p10Short) items.push({ age: simLatest.p10Short, color: "#fbbd23", lbl: "Money runs low (10th percentile)", sub: "in a poor market" });
+  items.push({ age: prim.planToAge, color: "#9aa6c4", lbl: "Plan horizon", sub: "end of projection" });
+  items.sort((a, b) => a.age - b.age);
+  $("#milestones").innerHTML = items.map(it => `<div class="ms"><span class="dot2" style="background:${it.color}"></span><span class="age">age ${it.age}</span><span class="lbl">${it.lbl}<div class="yr">${yr(it.age)} · ${it.sub}</div></span></div>`).join("");
+}
+
+// --- Scenarios (save / compare / load) ----------------------------------
+const loadScenarios = () => { try { return JSON.parse(localStorage.getItem("rv-scenarios") || "[]"); } catch { return []; } };
+const saveScenarios = a => localStorage.setItem("rv-scenarios", JSON.stringify(a));
+function snapshotState() { const o = { coastMethod: state.coastMethod }; for (const k in defaults) o[k] = state[k]; return o; }
+function metricsFor(sv) {
+  const st = { ...defaults, coastMethod: defaultMethod, ...sv };
+  const sim = simulate(st), c = coastFire(st);
+  return { prob: sim.prob, end: sim.end, coast: c.coastNow === Infinity ? 0 : c.coastNow, short: sim.p10Short };
+}
+function renderScenarios() {
+  const list = loadScenarios();
+  const rows = [{ name: "Current (live)", m: metricsFor(snapshotState()), idx: -1 }]
+    .concat(list.map((s, i) => ({ name: s.name, m: metricsFor(s.state), idx: i })));
+  const probCell = p => `<td class="num ${p >= 80 ? "good" : p >= 50 ? "warn" : "bad"}" style="font-weight:700">${p}%</td>`;
+  const body = rows.map(r => `<tr><td>${esc(r.name)}</td>${probCell(r.m.prob)}<td class="num">${short$(r.m.end)}</td><td class="num">${short$(r.m.coast)}</td><td class="num">${r.m.short ? "age " + r.m.short : "—"}</td><td class="num" style="white-space:nowrap">${r.idx < 0 ? "" : `<button class="btn" data-load="${r.idx}" style="padding:4px 10px;min-height:0">Load</button> <button class="btn" data-del="${r.idx}" aria-label="Delete scenario" style="padding:4px 10px;min-height:0">×</button>`}</td></tr>`).join("");
+  $("#scenTable").innerHTML = `<table><thead><tr><th>Scenario</th><th class="num">Success</th><th class="num">Median end</th><th class="num">Coast #</th><th class="num">Shortfall</th><th></th></tr></thead><tbody>${body}</tbody></table>`;
+}
+$("#scenSave").addEventListener("click", () => {
+  const list = loadScenarios();
+  const name = ($("#scenName").value.trim()) || "Scenario " + (list.length + 1);
+  list.push({ name, state: snapshotState() }); saveScenarios(list);
+  $("#scenName").value = ""; renderScenarios();
+});
+$("#scenTable").addEventListener("click", e => {
+  const load = e.target.getAttribute("data-load"), del = e.target.getAttribute("data-del");
+  if (del != null) { const list = loadScenarios(); list.splice(+del, 1); saveScenarios(list); renderScenarios(); }
+  else if (load != null) {
+    const sv = loadScenarios()[+load]; if (!sv) return;
+    state = { ...defaults, coastMethod: defaultMethod, ...sv.state };
+    renderControls(); coastSlider.value = state.coastFrom; swrSlider.value = state.swr; methodSel.value = state.coastMethod;
+    recompute(); renderScenarios();
+  }
+});
+
+// --- Tabs (KPI bar + levers stay outside; tabs swap the main view) ------
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function activate(tab) {
+  if (!tab) return;
+  activeTab = tab.id.replace("tab-", "");
+  tabs.forEach(t => { const sel = t === tab; t.setAttribute("aria-selected", String(sel)); t.tabIndex = sel ? 0 : -1; document.getElementById(t.getAttribute("aria-controls")).hidden = !sel; });
+  if (activeTab === "projection") drawChart();
+  else if (activeTab === "coast") drawGauge(D.coastPct);
+  else if (activeTab === "accounts") animateDonuts();
+  else if (activeTab === "scenarios") renderScenarios();
+  else if (activeTab === "milestones") renderMilestones();
+  writeHash();
+}
+tabs.forEach((t, i) => {
+  t.addEventListener("click", () => activate(t));
+  t.addEventListener("keydown", e => { let n = null; if (e.key === "ArrowRight") n = tabs[(i + 1) % tabs.length]; else if (e.key === "ArrowLeft") n = tabs[(i - 1 + tabs.length) % tabs.length]; else if (e.key === "Home") n = tabs[0]; else if (e.key === "End") n = tabs[tabs.length - 1]; if (n) { e.preventDefault(); n.focus(); activate(n); } });
+});
+activate(document.getElementById("tab-" + (new URLSearchParams(location.hash.slice(1)).get("tab") || "projection")) || tabs[0]);
 
 // --- In-app editor -------------------------------------------------------
 const TAX_OPTS = ["Tax deferred", "Tax exempt", "Taxable"];

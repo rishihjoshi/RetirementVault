@@ -1,5 +1,5 @@
 // Cache-first service worker so the snapshot works offline.
-const CACHE = "retirement-vault-v10-1.0.0";
+const CACHE = "retirement-vault-v11-1.1.0";
 const ASSETS = [
   "./", "index.html", "app.js", "plan.js",
   "manifest.webmanifest", "icons/icon.svg"
