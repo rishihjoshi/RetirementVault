@@ -137,6 +137,7 @@
   .acctrow{display:grid;grid-template-columns:1.4fr 1fr .9fr 1fr 1fr 1.2fr auto;gap:6px;align-items:end;margin-bottom:8px}
   .acctrow .rm{min-height:42px;align-self:end}
   @media(max-width:640px){.grid3{grid-template-columns:1fr 1fr}.acctrow{grid-template-columns:1fr 1fr}}
+  #updateBanner{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:200;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;box-shadow:0 12px 34px rgba(0,0,0,.55);max-width:520px;margin:0 auto}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0}
   [hidden]{display:none!important}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -311,8 +312,46 @@
 
 <script src="plan.js"></script>
 <script src="app.js"></script>
+<div id="updateBanner" hidden role="status" aria-live="polite">
+  <span>A new version is available.</span>
+  <button class="btn primary" id="updateBtn">Update now</button>
+</div>
 <script>
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  var refreshing = false;
+  // When the new worker takes control, reload once into the fresh code.
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (refreshing) return; refreshing = true; location.reload();
+  });
+  function showBanner(worker) {
+    var b = document.getElementById('updateBanner');
+    b.hidden = false;
+    document.getElementById('updateBtn').onclick = function () {
+      this.textContent = 'Updating…';
+      worker.postMessage({ type: 'SKIP_WAITING' });
+    };
+  }
+  function watch(worker) {
+    if (!worker) return;
+    worker.addEventListener('statechange', function () {
+      // "installed" + an existing controller = an update (not the first install).
+      if (worker.state === 'installed' && navigator.serviceWorker.controller) showBanner(worker);
+    });
+  }
+  // updateViaCache:'none' => the browser always fetches sw.js from the network,
+  // so a new release is actually detected instead of served from HTTP cache.
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+    if (reg.waiting && navigator.serviceWorker.controller) showBanner(reg.waiting);
+    reg.addEventListener('updatefound', function () { watch(reg.installing); });
+    // Check for a new version whenever the app is reopened/refocused — the key
+    // to updating long-lived installed PWAs that never navigate.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') reg.update();
+    });
+    setInterval(function () { reg.update(); }, 60 * 60 * 1000); // hourly while open
+  }).catch(function () {});
+})();
 </script>
 </body>
 </html>

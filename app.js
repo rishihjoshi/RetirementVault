@@ -2,7 +2,7 @@
 // anything reads window.PLAN. This is what lets you enter your own numbers.
 try { const ov = JSON.parse(localStorage.getItem("rv-plan") || "null"); if (ov) Object.assign(window.PLAN, ov); } catch (e) { /* ignore corrupt override */ }
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const P = window.PLAN;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
