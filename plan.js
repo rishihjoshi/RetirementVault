@@ -49,9 +49,12 @@ window.PLAN = {
   // Levers you can tune (seed values; sliders start here).
   assumptions: {
     salaryGrowth: 0.01,        // real annual raise while working
-    otherMonthlyIncome: 0,     // Social Security / pension / annuity per month
-    // Contribution rate as a % of combined gross salary. Default is derived
-    // from the accounts above (total contrib / total salary) if left null.
-    contribRate: null
+    contribRate: null,         // % of combined gross salary; null = derive from accounts
+    // Retirement income taxes: tax-deferred withdrawals are grossed up by this
+    // effective rate (Roth/taxable balances are treated as tax-free here).
+    retirementTaxRate: 0.15,
+    // Social Security / pension: a monthly benefit (today's $) that starts at ssStartAge.
+    ssMonthly: 0,
+    ssStartAge: 67
   }
 };
